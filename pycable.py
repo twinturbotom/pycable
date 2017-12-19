@@ -10,6 +10,7 @@ fill_percent = .4
 def circle_area(radius=None, diameter=None):
 	if not radius:
 		radius = diameter / 2
+
 	area = math.pi*math.pow( radius,2)
 
 	return area
@@ -20,6 +21,9 @@ def gauge_to_dia_mm(gauge):
 		
 	dia_mm = 0.127 * math.pow(92, ((36.0-gauge)/39.0) )
 	return dia_mm
+
+def inch_to_mm(inch):
+	return inch * 25.4
 
 cable_table = pd.DataFrame()
 cable_table['Gauge'] = pd.Series([14,12,10,8,6,4,3,0])
@@ -37,16 +41,24 @@ print '\nCable Table:\n\n', cable_table
 harness = pd.DataFrame( range(1,(N+1)), columns=['Number'])
 harness['Amperage'] = [60]*12 + [30]*12 
 harness = harness.merge(cable_table, on='Amperage')
+
+harness['Inner Label'] = [  '{x}{y}'.format(x=x,y=y) for x in range(1,7) for y in ['A','B']]*2
 	
 print '\nHarness:\n\n', harness
 
-print '\nTotal area of 30 gauge: ', harness.loc[ harness['Amperage'] == 30]['Area (mm2)'].sum()
-print 'Total area of 60 gauge: ', harness.loc[ harness['Amperage'] == 60]['Area (mm2)'].sum()
+print '\nBundle Area (mm2): \n', harness.groupby('Amperage')['Area (mm2)'].sum()
+
 print '\nTotal area of harness: ', harness['Area (mm2)'].sum()
-print '40% of 2" diameter conduit: ', circle_area(radius=25.4) * .4
 
-print harness.groupby('Amperage').sum()
-
+conduits = pd.DataFrame({'Diameter (in)': [0.5,1.0,1.5,2.0]})
+conduits['Diameter (mm)'] = inch_to_mm( conduits['Diameter (in)'] )
+conduits['Area (mm2)'] = conduits['Diameter (mm)'].apply(lambda A: circle_area( diameter = A ) )
+conduits['40% Area'] = conduits['Area (mm2)']*.4
+conduits['30A Bundle Area (mm2)'] = harness.loc[ harness['Amperage'] == 30]['Area (mm2)'].sum()
+conduits['% of 30A bundle'] = conduits['30A Bundle Area (mm2)'] / conduits['Area (mm2)']
+conduits['60A Bundle Area (mm2)'] = harness.loc[ harness['Amperage'] == 60]['Area (mm2)'].sum()
+conduits['% of 60A bundle'] = conduits['60A Bundle Area (mm2)'] / conduits['Area (mm2)']
+print '\nConduits:\n', conduits
 #conduit_ratio = harness.loc[ harness['Amperage'] == 60]['Area (mm2)'].sum() / circle_area(radius=25.4)
 
 #print '\n', '{:,.2f}'.format(conduit_ratio)
