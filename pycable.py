@@ -3,10 +3,16 @@ import math
 pd.set_option('display.width', 1000)
 pd.options.display.float_format = '{:,.2f}'.format
 
-N = 12
+N = 24
 Dia = 5.0 #mm
 fill_percent = .4
 
+def circle_area(radius=None, diameter=None):
+	if not radius:
+		radius = diameter / 2
+	area = math.pi*math.pow( radius,2)
+
+	return area
 
 def gauge_to_dia_mm(gauge):
 	if gauge == ('00' or '000' or '0000'):
@@ -24,17 +30,28 @@ cable_table['Area (mm2)'] = cable_table['Radius (mm)'].apply( lambda r: math.pi*
 cable_table['Circumference (mm)'] = 2*math.pi*cable_table['Area (mm2)']
 cable_table['Bend Radius (mm)'] = cable_table['Diameter (mm)'] * 8
 
-print '\n', cable_table
+print '\nCable Table:\n\n', cable_table
 
-print '\n', cable_table.loc[ (cable_table['Amperage'] == 60) | (cable_table['Amperage'] == 30) ]
+# print '\n', cable_table.loc[ (cable_table['Amperage'] == 60) | (cable_table['Amperage'] == 30) ]
 
-print '\n'
+harness = pd.DataFrame( range(1,(N+1)), columns=['Number'])
+harness['Amperage'] = [60]*12 + [30]*12 
+harness = harness.merge(cable_table, on='Amperage')
+	
+print '\nHarness:\n\n', harness
 
-harness = pd.DataFrame(range(1,N), columns=['Number'])
+print '\nTotal area of 30 gauge: ', harness.loc[ harness['Amperage'] == 30]['Area (mm2)'].sum()
+print 'Total area of 60 gauge: ', harness.loc[ harness['Amperage'] == 60]['Area (mm2)'].sum()
+print '\nTotal area of harness: ', harness['Area (mm2)'].sum()
+print '40% of 2" diameter conduit: ', circle_area(radius=25.4) * .4
 
+print harness.groupby('Amperage').sum()
 
+#conduit_ratio = harness.loc[ harness['Amperage'] == 60]['Area (mm2)'].sum() / circle_area(radius=25.4)
 
-# #DF for each conductor
+#print '\n', '{:,.2f}'.format(conduit_ratio)
+
+# #DF for each conductor=
 # conductors = pd.DataFrame({ 'Number': range(1,N+1) })
 
 # #Define properties of conductors
