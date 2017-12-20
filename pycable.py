@@ -1,5 +1,7 @@
 import pandas as pd
 import math
+import numpy as np
+
 pd.set_option('display.width', 1000)
 pd.options.display.float_format = '{:,.2f}'.format
 
@@ -54,4 +56,50 @@ print '\nHarness:\n\n', harness
 print '\nBundle Area (mm2): \n', harness.groupby('Amperage')['Area (mm2)'].sum()
 print '\nTotal area of harness: ', harness['Area (mm2)'].sum()
 print '\nConduits:\n', conduits
+
+num_bundle_wires = 12
+shells = pd.DataFrame(data = list(range(1,num_bundle_wires+1)),columns=['Number'])
+
+conductor_dia = float(cable_table.loc[cable_table['Amperage'] == 60]['Diameter (mm)'])
+
+shells['Radius'] = (shells['Number'] * (conductor_dia)) - (conductor_dia/2)
+shells['Circumference'] = (2*math.pi)*shells['Radius'] 
+shells['Max Elements'] = ( shells['Circumference'] / (conductor_dia)  ).apply(lambda x: int(x)) #int rounds down.
+shells['Element Spacing'] = shells['Circumference'] / (shells['Max Elements'])
+shells['Spacing Angle'] = ( shells['Element Spacing'] / shells['Radius'] ) 
+shells['Spacing Angle (deg)'] = ( shells['Element Spacing'] / shells['Radius'] ) * (180/math.pi)
+
+try:
+	shells_needed = shells[ :shells.loc[ shells['Max Elements'].cumsum() >= num_bundle_wires  ].index[0]+ 1]
+except Exception as e:
+	print('More conductors than conduit size')
+	print("\nException: %s" % str(e) )
+	sys.exit(1)
+
+
+def radii_gen(row, list_, column1, column2):
+	for i in [row[column1]] * int(row[column2] ):
+		list_.append(i)
+def thetas_gen(row, list_, column1, column2):
+	for i in np.arange( row[column1], row[column1]* row[column2]+1, row[column1]):
+		list_.append(i)
+
+radii = []
+shells_needed.apply(radii_gen, axis=1, args=(radii, 'Radius','Max Elements'))
+thetas = []
+shells_needed.apply(thetas_gen, axis=1, args=(thetas, 'Spacing Angle','Max Elements'))
+
+bundle = pd.DataFrame(data = {'Number' : list(range(1,num_bundle_wires+1)), 'Radius' : radii[:num_bundle_wires], 'Theta' : thetas[:num_bundle_wires] } )
+xs = []
+ys = []
+def cyl_to_orth(row, xs, ys, r,theta):
+	x = row[r]*math.cos(row[theta])
+	y = row[r]*math.cos(row[theta])
+	xs.append(x)
+	ys.append(y)
+bundle.apply(cyl_to_orth, axis=1, args=(xs, ys,'Radius','Theta') )
+bundle['X'] = xs
+bundle['Y'] = ys
+
+print '\n', bundle
 
